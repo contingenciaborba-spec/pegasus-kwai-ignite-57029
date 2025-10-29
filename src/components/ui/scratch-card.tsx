@@ -408,12 +408,16 @@ export function ScratchCard() {
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
-          style={{ opacity: 0.05 }}
+          style={{ opacity: isRevealed ? 1 : 0.05 }}
         />
         <canvas
           ref={scratchCanvasRef}
           className="absolute inset-0 w-full h-full cursor-pointer"
-          style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+          style={{ 
+            willChange: 'transform', 
+            transform: 'translateZ(0)',
+            pointerEvents: isRevealed ? 'none' : 'auto'
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -426,10 +430,15 @@ export function ScratchCard() {
         />
 
         {isRevealed && (
-          <div className="absolute inset-0 flex items-center justify-center backdrop-blur-md animate-fade-in" style={{ 
-            background: 'rgba(255, 255, 255, 0.95)',
-            animation: 'fade-in 0.28s cubic-bezier(0.22, 1, 0.36, 1)'
-          }}>
+          <div 
+            className="absolute inset-0 flex items-center justify-center animate-fade-in" 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.35)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
+              animation: 'fade-in 0.28s cubic-bezier(0.22, 1, 0.36, 1)'
+            }}
+          >
             <div className="text-center p-8 space-y-6">
               <div className="space-y-2">
                 <h4 className="font-heading text-3xl font-bold text-primary">Boa!</h4>
@@ -439,7 +448,16 @@ export function ScratchCard() {
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button 
-                  onClick={scrollToContact}
+                  onClick={() => {
+                    window.open('https://api.whatsapp.com/send/?phone=5511972276684&text&type=phone_number&app_absent=0', '_blank', 'noopener,noreferrer');
+                    if (typeof window !== 'undefined' && (window as any).dataLayer) {
+                      (window as any).dataLayer.push({
+                        event: 'contact_whatsapp_click',
+                        channel: 'scratch_success',
+                        timestamp: Date.now()
+                      });
+                    }
+                  }}
                   className="bg-[#FD4800] hover:bg-[#C53C00] text-white shadow-lg shadow-[#FD4800]/30"
                 >
                   Falar com a Pegasus
