@@ -137,7 +137,7 @@ export function ScratchCard() {
         rect.height + shimmerOffset * rect.height * 2
       );
       shimmerGradient.addColorStop(0, 'rgba(253, 72, 0, 0)');
-      shimmerGradient.addColorStop(0.5, 'rgba(253, 72, 0, 0.12)');
+      shimmerGradient.addColorStop(0.5, 'rgba(253, 72, 0, 0.10)');
       shimmerGradient.addColorStop(1, 'rgba(253, 72, 0, 0)');
       scratchCtx.fillStyle = shimmerGradient;
       scratchCtx.fillRect(0, 0, rect.width, rect.height);
@@ -162,7 +162,7 @@ export function ScratchCard() {
       scratchCtx.putImageData(imageData, 0, 0);
       
       // Set overlay opacity
-      scratchCtx.globalAlpha = 0.68;
+      scratchCtx.globalAlpha = 0.60;
     };
 
     drawGrid();
@@ -240,12 +240,12 @@ export function ScratchCard() {
     const brushSize = window.innerWidth < 768 ? 36 : 52;
     
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.globalAlpha = 0.55;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
-    // Draw stroke connection from last point to current point
+    // Draw stroke connection from last point to current point - full erase
     if (lastPointerRef.current) {
+      ctx.globalAlpha = 1.0;
       ctx.lineWidth = brushSize * 1.2;
       ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
       ctx.beginPath();
@@ -254,7 +254,8 @@ export function ScratchCard() {
       ctx.stroke();
     }
     
-    // Soft brush with glow
+    // Soft brush with full erase center
+    ctx.globalAlpha = 1.0;
     const brushGradient = ctx.createRadialGradient(x, y, 0, x, y, brushSize);
     brushGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
     brushGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.4)');
@@ -264,7 +265,6 @@ export function ScratchCard() {
     ctx.beginPath();
     ctx.arc(x, y, brushSize, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
 
     lastPointerRef.current = { x, y };
 
@@ -307,7 +307,7 @@ export function ScratchCard() {
           const progress = Math.min(elapsed / 280, 1);
           const easedProgress = 1 - Math.pow(1 - progress, 3); // cubic-bezier(0.22,1,0.36,1) approximation
           
-          cached.scratchCtx!.globalAlpha = 0.68 * (1 - easedProgress);
+          cached.scratchCtx!.globalAlpha = 0.60 * (1 - easedProgress);
           
           if (progress < 1) {
             requestAnimationFrame(fadeOut);
@@ -366,14 +366,82 @@ export function ScratchCard() {
     
     setIsRevealed(false);
     setCanReset(false);
-    shuffleIcons();
     lastPointerRef.current = null;
     particlesRef.current = [];
     
-    // Reset cached context opacity
-    if (cachedContextsRef.current?.scratchCtx) {
-      cachedContextsRef.current.scratchCtx.globalAlpha = 1;
+    // Stop particle animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
     }
+    
+    // Re-show and reset overlay canvas
+    const scratchCanvas = scratchCanvasRef.current;
+    const fxCanvas = fxCanvasRef.current;
+    if (scratchCanvas) {
+      scratchCanvas.style.display = 'block';
+      scratchCanvas.style.pointerEvents = 'auto';
+    }
+    
+    // Clear FX canvas
+    if (fxCanvas && cachedContextsRef.current?.fxCtx) {
+      const ctx = cachedContextsRef.current.fxCtx;
+      ctx.clearRect(0, 0, cachedContextsRef.current.rect.width, cachedContextsRef.current.rect.height);
+    }
+    
+    // Reset and redraw overlay
+    if (cachedContextsRef.current?.scratchCtx) {
+      const ctx = cachedContextsRef.current.scratchCtx;
+      const rect = cachedContextsRef.current.rect;
+      
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      
+      // Redraw base gradient
+      const baseGradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
+      baseGradient.addColorStop(0, '#FFF7F2');
+      baseGradient.addColorStop(1, '#FFE8DE');
+      ctx.fillStyle = baseGradient;
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      
+      // Redraw shimmer
+      const shimmerOffset = (Date.now() / 6000) % 1;
+      const shimmerGradient = ctx.createLinearGradient(
+        -rect.width + shimmerOffset * rect.width * 2, 
+        -rect.height + shimmerOffset * rect.height * 2,
+        rect.width + shimmerOffset * rect.width * 2, 
+        rect.height + shimmerOffset * rect.height * 2
+      );
+      shimmerGradient.addColorStop(0, 'rgba(253, 72, 0, 0)');
+      shimmerGradient.addColorStop(0.5, 'rgba(253, 72, 0, 0.10)');
+      shimmerGradient.addColorStop(1, 'rgba(253, 72, 0, 0)');
+      ctx.fillStyle = shimmerGradient;
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      
+      // Inner glow
+      ctx.shadowColor = 'rgba(253, 72, 0, 0.25)';
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = 'rgba(253, 72, 0, 0.1)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, rect.width - 2, rect.height - 2);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      
+      // Add noise texture
+      const imageData = ctx.getImageData(0, 0, rect.width, rect.height);
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const noise = Math.random() * 15 - 7.5;
+        imageData.data[i] += noise;
+        imageData.data[i + 1] += noise;
+        imageData.data[i + 2] += noise;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      
+      ctx.globalAlpha = 0.60;
+    }
+    
+    // Re-randomize icons
+    shuffleIcons();
     
     setTimeout(() => setCanReset(true), 8000);
 
@@ -412,7 +480,11 @@ export function ScratchCard() {
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
-          style={{ opacity: isRevealed ? 1 : 0.05 }}
+          style={{ 
+            opacity: isRevealed ? 1 : 0.05,
+            filter: 'none',
+            mixBlendMode: 'normal'
+          }}
         />
         <canvas
           ref={scratchCanvasRef}
