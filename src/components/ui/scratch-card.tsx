@@ -391,7 +391,7 @@ export function ScratchCard() {
     // Reset and redraw overlay
     if (cachedContextsRef.current?.scratchCtx) {
       const ctx = cachedContextsRef.current.scratchCtx;
-      const rect = cachedContextsRef.current.rect;
+      const rect = cachedContextsRef.current.rect; 
       
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
@@ -437,7 +437,7 @@ export function ScratchCard() {
       }
       ctx.putImageData(imageData, 0, 0);
       
-      ctx.globalAlpha = 0.60;
+      ctx.globalAlpha = 1;
     }
     
     // Re-randomize icons
@@ -478,14 +478,14 @@ export function ScratchCard() {
         aria-label="Raspagem interativa – painel de revelação"
       >
         <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{ 
-            opacity: isRevealed ? 1 : 0.05,
-            filter: 'none',
-            mixBlendMode: 'normal'
-          }}
-        />
+  ref={canvasRef}
+  className="absolute inset-0 w-full h-full"
+  style={{ 
+    opacity: 1,            // ✅ sempre visível
+    filter: 'none',
+    mixBlendMode: 'normal'
+  }}
+/>
         <canvas
           ref={scratchCanvasRef}
           className="absolute inset-0 w-full h-full cursor-pointer"
