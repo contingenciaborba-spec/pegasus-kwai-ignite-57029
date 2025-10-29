@@ -23,6 +23,7 @@ const icons = [
 export function ScratchCard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fxCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScratching, setIsScratching] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -30,6 +31,14 @@ export function ScratchCard() {
   const [gridIcons, setGridIcons] = useState<typeof icons>([]);
   const particlesRef = useRef<Particle[]>([]);
   const animationFrameRef = useRef<number>();
+  const cachedContextsRef = useRef<{
+    ctx: CanvasRenderingContext2D | null;
+    scratchCtx: CanvasRenderingContext2D | null;
+    fxCtx: CanvasRenderingContext2D | null;
+    dpr: number;
+    rect: { width: number; height: number };
+  } | null>(null);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   // Shuffle icons for 3x3 grid
   const shuffleIcons = () => {
@@ -52,11 +61,13 @@ export function ScratchCard() {
   useEffect(() => {
     const canvas = canvasRef.current;
     const scratchCanvas = scratchCanvasRef.current;
-    if (!canvas || !scratchCanvas || gridIcons.length === 0) return;
+    const fxCanvas = fxCanvasRef.current;
+    if (!canvas || !scratchCanvas || !fxCanvas || gridIcons.length === 0) return;
 
-    const ctx = canvas.getContext('2d');
-    const scratchCtx = scratchCanvas.getContext('2d');
-    if (!ctx || !scratchCtx) return;
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    const scratchCtx = scratchCanvas.getContext('2d', { willReadFrequently: true });
+    const fxCtx = fxCanvas.getContext('2d', { willReadFrequently: false });
+    if (!ctx || !scratchCtx || !fxCtx) return;
 
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
@@ -65,9 +76,21 @@ export function ScratchCard() {
     canvas.height = rect.height * dpr;
     scratchCanvas.width = rect.width * dpr;
     scratchCanvas.height = rect.height * dpr;
+    fxCanvas.width = rect.width * dpr;
+    fxCanvas.height = rect.height * dpr;
     
     ctx.scale(dpr, dpr);
     scratchCtx.scale(dpr, dpr);
+    fxCtx.scale(dpr, dpr);
+
+    // Cache contexts and DPR
+    cachedContextsRef.current = {
+      ctx,
+      scratchCtx,
+      fxCtx,
+      dpr,
+      rect: { width: rect.width, height: rect.height }
+    };
 
     // Draw grid with icons
     const drawGrid = () => {
@@ -145,17 +168,29 @@ export function ScratchCard() {
     drawGrid();
     if (!isRevealed) {
       drawScratchOverlay();
+    } else {
+      // Fade out overlay
+      scratchCtx.globalAlpha = 0;
+      scratchCtx.clearRect(0, 0, rect.width, rect.height);
     }
   }, [gridIcons, isRevealed]);
 
-  // Particle animation
+  // Particle animation on separate FX canvas
   useEffect(() => {
     const animate = () => {
-      const canvas = scratchCanvasRef.current;
-      if (!canvas) return;
+      const fxCanvas = fxCanvasRef.current;
+      if (!fxCanvas) return;
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      const cached = cachedContextsRef.current;
+      if (!cached || !cached.fxCtx) return;
+
+      const ctx = cached.fxCtx;
+      ctx.clearRect(0, 0, cached.rect.width, cached.rect.height);
+
+      // Limit to 80 active particles
+      if (particlesRef.current.length > 80) {
+        particlesRef.current = particlesRef.current.slice(-80);
+      }
 
       particlesRef.current = particlesRef.current.filter(p => {
         p.x += p.vx;
@@ -196,59 +231,90 @@ export function ScratchCard() {
   }, [isScratching]);
 
   const scratch = (x: number, y: number) => {
-    const canvas = scratchCanvasRef.current;
-    if (!canvas || isRevealed) return;
+    if (isRevealed) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const cached = cachedContextsRef.current;
+    if (!cached || !cached.scratchCtx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    const brushSize = window.innerWidth < 768 ? 40 : 60;
+    const ctx = cached.scratchCtx;
+    const brushSize = window.innerWidth < 768 ? 36 : 52;
     
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.globalAlpha = 0.65;
+    ctx.globalAlpha = 0.55;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Draw stroke connection from last point to current point
+    if (lastPointerRef.current) {
+      ctx.lineWidth = brushSize * 1.2;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
+      ctx.beginPath();
+      ctx.moveTo(lastPointerRef.current.x, lastPointerRef.current.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
     
     // Soft brush with glow
-    const brushGradient = ctx.createRadialGradient(
-      x * scaleX, y * scaleY, 0,
-      x * scaleX, y * scaleY, brushSize * scaleX
-    );
+    const brushGradient = ctx.createRadialGradient(x, y, 0, x, y, brushSize);
     brushGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
     brushGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.4)');
     brushGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     
     ctx.fillStyle = brushGradient;
     ctx.beginPath();
-    ctx.arc(x * scaleX, y * scaleY, brushSize * scaleX, 0, Math.PI * 2);
+    ctx.arc(x, y, brushSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Add particles
-    for (let i = 0; i < 2; i++) {
+    lastPointerRef.current = { x, y };
+
+    // Add particles (3 per scratch)
+    for (let i = 0; i < 3; i++) {
+      const lifetime = 300 + Math.random() * 200; // 300-500ms
       particlesRef.current.push({
         x,
         y,
         vx: (Math.random() - 0.5) * 2.5,
         vy: Math.random() * -2.5 - 0.8,
-        life: 25 + Math.random() * 25,
-        maxLife: 50,
+        life: lifetime,
+        maxLife: lifetime,
         size: 2 + Math.random() * 2.5
       });
     }
 
-    // Check reveal progress
+    // Sample alpha check (step 16) for reveal percentage
+    const canvas = scratchCanvasRef.current;
+    if (!canvas) return;
+    
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let transparentPixels = 0;
-    for (let i = 3; i < imageData.data.length; i += 4) {
+    let totalSampled = 0;
+    for (let i = 3; i < imageData.data.length; i += 64) { // step 16 (4 channels * 16)
       if (imageData.data[i] < 128) transparentPixels++;
+      totalSampled++;
     }
-    const percentRevealed = (transparentPixels / (imageData.data.length / 4)) * 100;
+    const percentRevealed = (transparentPixels / totalSampled) * 100;
 
-    if (percentRevealed >= 45 && !isRevealed) {
+    if (percentRevealed >= 52 && !isRevealed) {
       setIsRevealed(true);
+      
+      // Fade out overlay
+      const scratchCanvas = scratchCanvasRef.current;
+      if (scratchCanvas && cached.scratchCtx) {
+        const startTime = Date.now();
+        const fadeOut = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / 280, 1);
+          const easedProgress = 1 - Math.pow(1 - progress, 3); // cubic-bezier(0.22,1,0.36,1) approximation
+          
+          cached.scratchCtx!.globalAlpha = 0.78 * (1 - easedProgress);
+          
+          if (progress < 1) {
+            requestAnimationFrame(fadeOut);
+          }
+        };
+        requestAnimationFrame(fadeOut);
+      }
       
       // Analytics
       if (typeof window !== 'undefined' && (window as any).dataLayer) {
@@ -288,6 +354,7 @@ export function ScratchCard() {
 
   const handlePointerUp = () => {
     setIsScratching(false);
+    lastPointerRef.current = null;
   };
 
   const handleReset = () => {
@@ -296,6 +363,13 @@ export function ScratchCard() {
     setIsRevealed(false);
     setCanReset(false);
     shuffleIcons();
+    lastPointerRef.current = null;
+    particlesRef.current = [];
+    
+    // Reset cached context opacity
+    if (cachedContextsRef.current?.scratchCtx) {
+      cachedContextsRef.current.scratchCtx.globalAlpha = 1;
+    }
     
     setTimeout(() => setCanReset(true), 8000);
 
@@ -345,9 +419,17 @@ export function ScratchCard() {
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
         />
+        <canvas
+          ref={fxCanvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+        />
 
         {isRevealed && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur-md animate-fade-in">
+          <div className="absolute inset-0 flex items-center justify-center backdrop-blur-md animate-fade-in" style={{ 
+            background: 'rgba(255, 255, 255, 0.95)',
+            animation: 'fade-in 0.28s cubic-bezier(0.22, 1, 0.36, 1)'
+          }}>
             <div className="text-center p-8 space-y-6">
               <div className="space-y-2">
                 <h4 className="font-heading text-3xl font-bold text-primary">Boa!</h4>
