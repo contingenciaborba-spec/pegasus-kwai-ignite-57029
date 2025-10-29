@@ -161,6 +161,39 @@ export function ScratchCard() {
       }
       scratchCtx.putImageData(imageData, 0, 0);
       
+      // Draw "RASPE AQUI" text
+      scratchCtx.globalAlpha = 1;
+      scratchCtx.globalCompositeOperation = 'source-over';
+      
+      // Calculate responsive font size (6-8% of width, min 24px, max 56px)
+      const fontSize = Math.max(24, Math.min(56, rect.width * 0.07));
+      scratchCtx.font = `700 ${fontSize}px Inter, system-ui, sans-serif`;
+      scratchCtx.textAlign = 'center';
+      scratchCtx.textBaseline = 'middle';
+      
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      // Text shadow for depth
+      scratchCtx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+      scratchCtx.shadowBlur = 6;
+      scratchCtx.shadowOffsetX = 0;
+      scratchCtx.shadowOffsetY = 2;
+      
+      // White stroke for visibility
+      scratchCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      scratchCtx.lineWidth = fontSize * 0.15;
+      scratchCtx.lineJoin = 'round';
+      scratchCtx.strokeText('RASPE AQUI', centerX, centerY);
+      
+      // Main text color
+      scratchCtx.fillStyle = '#FD6200';
+      scratchCtx.fillText('RASPE AQUI', centerX, centerY);
+      
+      // Reset shadow
+      scratchCtx.shadowColor = 'transparent';
+      scratchCtx.shadowBlur = 0;
+      
       // Set overlay opacity
       scratchCtx.globalAlpha = 0.60;
     };
@@ -436,6 +469,39 @@ export function ScratchCard() {
         imageData.data[i + 2] += noise;
       }
       ctx.putImageData(imageData, 0, 0);
+      
+      // Draw "RASPE AQUI" text
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      
+      // Calculate responsive font size (6-8% of width, min 24px, max 56px)
+      const textFontSize = Math.max(24, Math.min(56, rect.width * 0.07));
+      ctx.font = `700 ${textFontSize}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const textCenterX = rect.width / 2;
+      const textCenterY = rect.height / 2;
+      
+      // Text shadow for depth
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      
+      // White stroke for visibility
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = textFontSize * 0.15;
+      ctx.lineJoin = 'round';
+      ctx.strokeText('RASPE AQUI', textCenterX, textCenterY);
+      
+      // Main text color
+      ctx.fillStyle = '#FD6200';
+      ctx.fillText('RASPE AQUI', textCenterX, textCenterY);
+      
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
       
       ctx.globalAlpha = 1;
     }
