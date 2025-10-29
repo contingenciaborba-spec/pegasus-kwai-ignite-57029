@@ -137,7 +137,7 @@ export function ScratchCard() {
         rect.height + shimmerOffset * rect.height * 2
       );
       shimmerGradient.addColorStop(0, 'rgba(253, 72, 0, 0)');
-      shimmerGradient.addColorStop(0.5, 'rgba(253, 72, 0, 0.18)');
+      shimmerGradient.addColorStop(0.5, 'rgba(253, 72, 0, 0.12)');
       shimmerGradient.addColorStop(1, 'rgba(253, 72, 0, 0)');
       scratchCtx.fillStyle = shimmerGradient;
       scratchCtx.fillRect(0, 0, rect.width, rect.height);
@@ -162,7 +162,7 @@ export function ScratchCard() {
       scratchCtx.putImageData(imageData, 0, 0);
       
       // Set overlay opacity
-      scratchCtx.globalAlpha = 0.78;
+      scratchCtx.globalAlpha = 0.68;
     };
 
     drawGrid();
@@ -307,10 +307,14 @@ export function ScratchCard() {
           const progress = Math.min(elapsed / 280, 1);
           const easedProgress = 1 - Math.pow(1 - progress, 3); // cubic-bezier(0.22,1,0.36,1) approximation
           
-          cached.scratchCtx!.globalAlpha = 0.78 * (1 - easedProgress);
+          cached.scratchCtx!.globalAlpha = 0.68 * (1 - easedProgress);
           
           if (progress < 1) {
             requestAnimationFrame(fadeOut);
+          } else {
+            // Hide overlay canvas after fade completes
+            scratchCanvas.style.display = 'none';
+            scratchCanvas.style.pointerEvents = 'none';
           }
         };
         requestAnimationFrame(fadeOut);
@@ -433,16 +437,16 @@ export function ScratchCard() {
           <div 
             className="absolute inset-0 flex items-center justify-center animate-fade-in" 
             style={{ 
-              background: 'rgba(255, 255, 255, 0.35)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255, 255, 255, 0.4)',
+              background: 'rgba(255, 255, 255, 0.90)',
+              backdropFilter: 'blur(6px)',
+              border: '1px solid rgba(255, 255, 255, 0.65)',
               animation: 'fade-in 0.28s cubic-bezier(0.22, 1, 0.36, 1)'
             }}
           >
             <div className="text-center p-8 space-y-6">
               <div className="space-y-2">
-                <h4 className="font-heading text-3xl font-bold text-primary">Boa!</h4>
-                <p className="text-muted-foreground">
+                <h4 className="font-heading text-3xl font-bold" style={{ color: '#FD4800' }}>Boa!</h4>
+                <p style={{ color: 'rgba(0, 0, 0, 0.75)' }}>
                   Continue a leitura no site e entre em contato.
                 </p>
               </div>
